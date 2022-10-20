@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -17,12 +18,14 @@ func parseOptions() *gvars.Config {
 	ntlm := flag.String("H", "", "Use NTLM authentication")
 	dc := flag.String("dc", "", "IP address or FQDN of target DC")
 	scheme := flag.Bool("s", false, "Bind using LDAPS")
-	logFile := flag.String("o", "", "Log file")
+	outFile := flag.String("o", "", "Output file")
+	outFormat := flag.String("f", "", "Output format CSV/JSON")
 	socks4 := flag.Bool("socks4", false, "SOCKS4 Proxy Address (ip:port)")
 	socks4a := flag.Bool("socks4a", false, "SOCKS4A Proxy Address (ip:port)")
 	socks5 := flag.Bool("socks5", false, "SOCKS5 Proxy Address (ip:port)")
 	action := flag.String("a", "", "Action to perform")
 	help := flag.Bool("h", false, "Display help menu")
+	query := flag.String("q", "", "Custom query to run")
 
 	flag.Parse()
 	return &gvars.Config{
@@ -31,21 +34,25 @@ func parseOptions() *gvars.Config {
 		Ntlm:      *ntlm,
 		Dc:        *dc,
 		Scheme:    *scheme,
-		OutFormat: "",
-		OutFile:   "",
-		LogFile:   *logFile,
+		OutFormat: *outFormat,
+		LogFile:   "",
+		OutFile:   *outFile,
 		Socks4:    *socks4,
 		Socks4a:   *socks4a,
 		Socks5:    *socks5,
 		Action:    *action,
 		Help:      *help,
+		Query:     *query,
 	}
+
+}
+
+func processOutput() {
 
 }
 
 func main() {
 	config := parseOptions()
-	// fmt.Print(config.Dc)
 
 	var conn *ldap.Conn
 	var err error
@@ -82,6 +89,11 @@ func main() {
 		actions.PerformFullDump()
 	case "policy":
 		actions.GetPasswordPolicy(conn)
+	case "custom":
+		result := actions.ExecuteCustomLdapQuery(conn, config.Query)
+		j, err := json.Marshal(result)
+
+		fmt.Println(string(j), err)
 	default:
 		log.Println("Todo: print all options")
 	}

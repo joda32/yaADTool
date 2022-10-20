@@ -14,4 +14,5 @@ type Config struct {
 	Socks5    bool
 	Action    string
 	Help      bool
+	Query     string
 }

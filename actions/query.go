@@ -1,9 +1,12 @@
 package actions
 
 import (
+	"fmt"
 	"log"
 
+	"github.com/bwmarrin/go-objectsid"
 	"github.com/go-ldap/ldap/v3"
+	"github.com/google/uuid"
 )
 
 func CreateSearchReq(baseDN string, query string) *ldap.SearchRequest {
@@ -44,6 +47,9 @@ func GetPasswordPolicy(conn *ldap.Conn) {
 	log.Printf("Returned [%d] policies", len(result.Entries))
 	if len(result.Entries) > 0 {
 		for domainDNSResult := range result.Entries {
+			for _, element := range result.Entries[domainDNSResult].Attributes {
+				fmt.Println("Key:", result.Entries[domainDNSResult].GetAttributeValue(element.Name), "=>", "Element:", element.Name)
+			}
 			minPwdLength := result.Entries[domainDNSResult].GetAttributeValue("minPwdLength")
 			pwdHistoryLength := result.Entries[domainDNSResult].GetAttributeValue("pwdHistoryLength")
 			maxPwdAge := result.Entries[domainDNSResult].GetAttributeValue("maxPwdAge")
@@ -78,4 +84,49 @@ func GetPasswordPolicy(conn *ldap.Conn) {
 			//log.Printf("\t\nPassword Complexity: \t%s", pwdPropertiesResolved)
 		}
 	}
+}
+
+func ExecuteCustomLdapQuery(conn *ldap.Conn, query string) []map[string]string {
+	var err error
+	log.Println("Executing custom LDAP query")
+	req := CreateSearchReq(QueryBaseDN, query)
+	var result []map[string]string
+
+	queryresult, err := conn.SearchWithPaging(req, 100)
+	if err != nil {
+		log.Printf("Query error, %s\n", err)
+		return nil
+	}
+	log.Printf("Returned [%d] entries", len(queryresult.Entries))
+	if len(queryresult.Entries) > 0 {
+		for i := range queryresult.Entries {
+			e := make(map[string]string)
+			for _, element := range queryresult.Entries[i].Attributes {
+				// Todo: Probably want to refactor this into a helper function to deal with output
+				buff := ""
+				switch element.Name {
+				case "objectSid":
+					buff = objectsid.Decode(queryresult.Entries[i].GetRawAttributeValue(element.Name)).String()
+				case "objectGUID":
+					var guid uuid.UUID
+					guid, err = uuid.Parse(fmt.Sprintf("%x", queryresult.Entries[i].GetRawAttributeValue(element.Name)))
+					if err == nil {
+						buff = guid.String()
+					} else {
+						fmt.Println(err)
+					}
+				case "msDS-GenerationId":
+					buff = fmt.Sprintf("%x", queryresult.Entries[i].GetRawAttributeValue(element.Name))
+				default:
+					buff = queryresult.Entries[i].GetAttributeValue(element.Name)
+				}
+				//fmt.Print(element.Name, "=", buff, ", ")
+				e[element.Name] = buff
+			}
+			//fmt.Print("\n")
+			result = append(result, e)
+		}
+	}
+	//fmt.Print(result)
+	return result
 }
