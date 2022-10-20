@@ -1,15 +1,17 @@
-package common
+package gvars
 
-type xxx struct {
-	upn       string
-	password  string
-	ntlm      string
-	dc        string
-	scheme    bool
-	outFormat string
-	outFile   string
-	socks4    bool
-	socks4a   bool
-	socks5    bool
-	help      bool
+type Config struct {
+	Upn       string
+	Password  string
+	Ntlm      string
+	Dc        string
+	Scheme    bool
+	OutFormat string
+	OutFile   string
+	LogFile   string
+	Socks4    bool
+	Socks4a   bool
+	Socks5    bool
+	Action    string
+	Help      bool
 }
